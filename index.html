@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scanner Absensi QR</title>
+  <script src="https://jsdelivr.net"></script>
+  <script src="https://unpkg.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+  <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md text-center">
+    <h1 class="text-2xl font-bold text-gray-800 mb-2">Scanner Absensi</h1>
+    <p class="text-sm text-gray-500 mb-6">Arahkan kamera ke QR Code Kartu Anggota</p>
+    
+    <!-- Kotak Scanner -->
+    <div id="reader" class="overflow-hidden rounded-xl border-2 border-dashed border-blue-400 bg-black"></div>
+    
+    <div id="status" class="mt-6 p-4 rounded-xl text-sm font-semibold bg-gray-50 text-gray-600">
+      Menunggu pemindaian...
+    </div>
+  </div>
+
+  <script>
+    // ⚠️ GANTI DENGAN LINK WEB APP GOOGLE APPS SCRIPT ANDA YANG BARU
+    // const WEB_APP_URL = "PASANG_LINK_EXEC_ANDA_DI_SINI"; 
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyzmH-vYjYIRW396f0pnXeFiDEs6pnOwsGj4viHvRGM1ZZdsBGBFqMthRUMbrAUwYVd/exec";
+
+    let lastResult = "";
+    let isProcessing = false;
+
+    function onScanSuccess(decodedText) {
+      if (decodedText === lastResult || isProcessing) return;
+      
+      isProcessing = true;
+      lastResult = decodedText;
+      
+      const statusDiv = document.getElementById('status');
+      statusDiv.className = "mt-6 p-4 rounded-xl text-sm font-semibold bg-blue-100 text-blue-700 animate-pulse";
+      statusDiv.innerText = "Mengirim data ke Google Sheets...";
+
+      // Mengirim data ke Google Apps Script menggunakan fetch API
+      fetch(WEB_APP_URL, {
+        method: "POST",
+        mode: "no-cors", // Penting untuk menghindari aturan CORS browser
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ qrData: decodedText })
+      })
+      .then(() => {
+        // Karena menggunakan no-cors, kita asumsikan data terkirim dengan sukses jika tidak ada error network
+        statusDiv.className = "mt-6 p-4 rounded-xl text-sm font-semibold bg-green-100 text-green-700";
+        statusDiv.innerText = "Data berhasil dikirim ke database!";
+        
+        setTimeout(() => {
+          lastResult = "";
+          isProcessing = false;
+          statusDiv.className = "mt-6 p-4 rounded-xl text-sm font-semibold bg-gray-50 text-gray-600";
+          statusDiv.innerText = "Siap memindai kartu berikutnya...";
+        }, 3000);
+      })
+      .catch(error => {
+        statusDiv.className = "mt-6 p-4 rounded-xl text-sm font-semibold bg-red-100 text-red-700";
+        statusDiv.innerText = "Gagal kirim: " + error.message;
+        isProcessing = false;
+        lastResult = "";
+      });
+    }
+
+    const html5QrCode = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    
+    html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+    .catch(() => {
+      html5QrCode.start({ facingMode: "user" }, config, onScanSuccess)
+      .catch(err => {
+        document.getElementById('status').innerText = "Kamera tidak diizinkan atau tidak ditemukan.";
+      });
+    });
+  </script>
+</body>
+</html>
