@@ -3,29 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uji Coba Pemindai QR & Ganti Kamera</title>
+    <title>Pemindai QR - Fitur Ganti Kamera</title>
     <!-- Memuat pustaka dari CDN -->
     <script src="https://unpkg.com"></script>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background: #f9f9f9; }
         #reader { width: 100%; max-width: 500px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; }
         .controls { margin: 20px 0; }
-        select, button { padding: 10px 15px; font-size: 16px; margin: 5px; border-radius: 5px; border: 1px solid #ccc; }
-        button { background-color: #007bff; color: white; cursor: pointer; border: none; }
-        button:hover { background-color: #0056b3; }
+        button { padding: 12px 20px; font-size: 16px; margin: 5px; border-radius: 5px; cursor: pointer; font-weight: bold; border: none; }
+        #start-btn { background-color: #007bff; color: white; }
+        #switch-btn { background-color: #6c757d; color: white; display: none; } /* Tersembunyi di awal */
         #result { margin-top: 20px; font-weight: bold; color: #28a745; padding: 10px; background: #e2f0d9; display: inline-block; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-    <h1>Pemindai QR dengan Fitur Ganti Kamera</h1>
+    <h1>Pemindai QR Kode</h1>
     
-    <!-- Kontrol Pemilih Kamera -->
+    <!-- Kontrol Tombol -->
     <div class="controls">
-        <select id="camera-select">
-            <option value="">Memuat kamera...</option>
-        </select>
-        <button id="toggle-scan-btn">Mulai Scan</button>
+        <button id="start-btn">Mulai Pindai</button>
+        <button id="switch-btn">Ganti Kamera 🔄</button>
     </div>
 
     <!-- Wadah Kamera -->
@@ -37,86 +35,71 @@
     <script>
         let html5Qrcode;
         let isScanning = false;
-        const cameraSelect = document.getElementById('camera-select');
-        const toggleBtn = document.getElementById('toggle-scan-btn');
+        // "environment" artinya kamera belakang, "user" artinya kamera depan
+        let currentFacingMode = "environment"; 
 
-        // 1. Dapatkan daftar kamera yang tersedia saat halaman dimuat
-        Html5Qrcode.getCameras().then(devices => {
-            cameraSelect.innerHTML = '';
-            if (devices && devices.length) {
-                devices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.id;
-                    // Tampilkan label kamera atau fallback ke nomor kamera
-                    option.text = device.label || `Kamera ${index + 1}`;
-                    cameraSelect.appendChild(option);
-                });
-            } else {
-                cameraSelect.innerHTML = '<option value="">Kamera tidak ditemukan</option>';
+        const startBtn = document.getElementById('start-btn');
+        const switchBtn = document.getElementById('switch-btn');
+
+        // Fungsi untuk menjalankan kamera berdasarkan Mode (Depan/Belakang)
+        function startScanning(facingMode) {
+            if (!html5Qrcode) {
+                html5Qrcode = new Html5Qrcode("reader");
             }
-        }).catch(err => {
-            console.error("Gagal mendapatkan kamera:", err);
-            cameraSelect.innerHTML = '<option value="">Izin kamera ditolak</option>';
-        });
 
-        // 2. Fungsi untuk mulai memindai
-        function startScanning(cameraId) {
-            html5Qrcode = new Html5Qrcode("reader");
             const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
             html5Qrcode.start(
-                cameraId, 
+                { facingMode: facingMode }, // Menggunakan mode arah kamera, bukan ID perangkat
                 config,
                 (decodedText) => {
-                    // Berhasil scan
                     document.getElementById('result').innerText = `Teks Terdeteksi: ${decodedText}`;
                 },
                 (errorMessage) => {
-                    // Gagal deteksi (diabaikan agar konsol bersih)
+                    // Log error pemindaian biasa diabaikan agar performa lancar
                 }
             ).then(() => {
                 isScanning = true;
-                toggleBtn.innerText = "Hentikan Scan";
-                toggleBtn.style.backgroundColor = "#dc3545"; // Merah
+                startBtn.innerText = "Hentikan Pindai";
+                startBtn.style.backgroundColor = "#dc3545"; // Berubah merah saat aktif
+                switchBtn.style.display = "inline-block"; // Tampilkan tombol ganti kamera
             }).catch(err => {
-                console.error("Gagal menjalankan kamera:", err);
+                console.error("Gagal mengakses kamera:", err);
+                alert("Gagal mengakses kamera. Pastikan izin kamera sudah diberikan di browser Anda.");
             });
         }
 
-        // 3. Fungsi untuk menghentikan pemindai
+        // Fungsi untuk menghentikan kamera
         function stopScanning() {
-            if (html5Qrcode) {
+            if (html5Qrcode && isScanning) {
                 html5Qrcode.stop().then(() => {
                     isScanning = false;
-                    toggleBtn.innerText = "Mulai Scan";
-                    toggleBtn.style.backgroundColor = "#007bff"; // Biru
-                }).catch(err => {
-                    console.error("Gagal menghentikan kamera:", err);
-                });
+                    startBtn.innerText = "Mulai Pindai";
+                    startBtn.style.backgroundColor = "#007bff"; // Kembali biru
+                    switchBtn.style.display = "none"; // Sembunyikan tombol ganti
+                }).catch(err => console.error("Gagal menghentikan kamera:", err));
             }
         }
 
-        // 4. Event Listener untuk Tombol Mulai/Berhenti
-        toggleBtn.addEventListener('click', () => {
+        // Event Klik Tombol Utama (Mulai/Berhenti)
+        startBtn.addEventListener('click', () => {
             if (isScanning) {
                 stopScanning();
             } else {
-                const selectedCameraId = cameraSelect.value;
-                if (selectedCameraId) {
-                    startScanning(selectedCameraId);
-                } else {
-                    alert("Silakan pilih kamera terlebih dahulu.");
-                }
+                startScanning(currentFacingMode);
             }
         });
 
-        // 5. Event Listener saat pengguna mengubah pilihan kamera secara aktif
-        cameraSelect.addEventListener('change', () => {
+        // Event Klik Tombol Ganti Kamera
+        switchBtn.addEventListener('click', () => {
             if (isScanning) {
-                // Hentikan kamera yang aktif terlebih dahulu, lalu jalankan kamera baru
+                // Balikkan mode kamera
+                currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+                
+                // Hentikan kamera saat ini lalu jalankan ulang dengan mode baru
                 html5Qrcode.stop().then(() => {
-                    startScanning(cameraSelect.value);
-                });
+                    startScanning(currentFacingMode);
+                }).catch(err => console.error(err));
             }
         });
     </script>
