@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Scanner Redmi Note 10 Pro - Perbaikan</title>
+    <title>QR Scanner Redmi Note 10 Pro - Perbaikan Akurat</title>
     
-    <!-- Memuat Pustaka Resmi dari CDNjs -->
+    <!-- Memuat Pustaka Resmi Terstabil dari CDNjs -->
     <script src="https://cloudflare.com"></script>
     
     <style>
@@ -20,7 +20,7 @@
         .file-upload-btn:active { background-color: #0056b3; }
         #qr-input-file { display: none; }
         
-        /* Wadah untuk menampung rendering gambar internal */
+        /* Wadah Tersembunyi untuk Alokasi Memori Mesin Pengurai */
         #reader { width: 100%; max-width: 400px; margin: 0 auto; display: none; }
         
         #result { margin-top: 20px; font-weight: bold; color: #212529; padding: 15px; background: #e9ecef; display: inline-block; border-radius: 6px; width: 100%; max-width: 400px; box-sizing: border-box; word-break: break-all; border: 1px solid #ccc; }
@@ -29,58 +29,63 @@
 <body>
 
     <h1>Pemindai QR Code Xiaomi</h1>
-    <p>Menggunakan Metode Pengurai File Gambar yang Stabil</p>
+    <p>Dioptimalkan untuk Penggalian File Data Tunggal Gambar</p>
     
     <div class="box-scanner">
         <label for="qr-input-file" class="file-upload-btn">📷 Ambil Foto Kode QR</label>
         <input type="file" id="qr-input-file" accept="image/*" capture="environment">
     </div>
 
-    <!-- Wadah Rendering Element -->
+    <!-- Wadah Rendering Element internal library -->
     <div id="reader"></div>
 
     <div id="result">Hasil pemindaian akan muncul di sini.</div>
 
     <script>
-        // Inisialisasi mesin pemindai html5-qrcode
+        // Inisialisasi engine html5-qrcode ke id "reader"
         const html5QrCode = new Html5Qrcode("reader"); 
         const fileInput = document.getElementById('qr-input-file');
         const resultDiv = document.getElementById('result');
 
         fileInput.addEventListener('change', function(e) {
+            // Jika pengguna membatalkan jepretan foto
             if (e.target.files.length === 0) {
                 return;
             }
 
-            // PERBAIKAN UTAMA: Mengambil indeks file pertama [0], bukan objek array utuh
+            // SOLUSI MUTLAK: Mengambil indeks ke-0 ([0]) untuk mengirimkan objek satu file tunggal secara valid
             const imageFile = e.target.files[0]; 
             
             resultDiv.style.background = "#fff3cd";
             resultDiv.style.color = "#856404";
-            resultDiv.innerText = "⏳ Sedang membaca data QR, mohon tunggu...";
+            resultDiv.style.borderColor = "#ffeeba";
+            resultDiv.innerText = "⏳ Sedang memproses gambar, mohon tunggu...";
 
-            // Menjalankan ekstraksi QR dari file jepretan kamera Xiaomi Anda
+            // Memulai proses ekstraksi QR dari file gambar tunggal hasil jepretan kamera Xiaomi Anda
             html5QrCode.scanFile(imageFile, false)
                 .then(decodedText => {
-                    // Berhasil membaca data atau link dalam QR code
+                    // Sukses mengekstrak teks atau tautan dari kode QR
                     resultDiv.style.background = "#d4edda";
                     resultDiv.style.color = "#155724";
                     resultDiv.style.borderColor = "#c3e6cb";
                     resultDiv.innerHTML = `<b>🎉 Sukses Terdeteksi!</b><br><br>${decodedText}`;
                 })
                 .catch(err => {
-                    // Jika jepretan kamera buram, blur, atau tidak pas di tengah
+                    // Jika jepretan kamera buram, blur, tidak pas di tengah, atau terlalu silau
                     resultDiv.style.background = "#f8d7da";
                     resultDiv.style.color = "#721c24";
                     resultDiv.style.borderColor = "#f5c6cb";
                     resultDiv.innerHTML = `
                         <b>Gagal Membaca Gambar ❌</b><br><br>
-                        Pola QR tidak terbaca dengan jelas.<br>
-                        <span style="font-size:12px; font-weight:normal; color:#555;">
-                        Tips: Pegang ponsel dengan stabil, pastikan pencahayaan cukup terang, dan posisikan kode QR tepat di tengah lensa kamera sebelum menjepret.
+                        Sistem tidak menemukan pola Kode QR yang valid pada foto Anda.<br><br>
+                        <span style="font-size:12px; font-weight:normal; color:#555; display:block; text-align:left;">
+                        <b>Tips Jepretan Sukses:</b><br>
+                        1. Dekatkan kamera ke kode QR (jarak ideal ±15 cm).<br>
+                        2. Pastikan kamera berhasil melakukan <b>Fokus</b> otomatis sebelum menjepret.<br>
+                        3. Hindari pantulan lampu silau pada permukaan kode QR.
                         </span>
                     `;
-                    console.error(err);
+                    console.error("Detail log kesalahan:", err);
                 });
         });
     </script>
