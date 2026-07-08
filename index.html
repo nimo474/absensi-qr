@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pemindai QR Xiaomi Redmi Stabil</title>
+    <title>QR Scanner Redmi Note 10 Pro</title>
     <script src="https://unpkg.com"></script>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f6f9; }
@@ -11,7 +11,7 @@
         .controls { margin: 20px 0; }
         button { padding: 14px 24px; font-size: 16px; margin: 5px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; }
         #start-btn { background-color: #007bff; color: white; }
-        #switch-btn { background-color: #28a745; color: white; display: none; } /* Tersembunyi di awal demi keamanan */
+        #switch-btn { background-color: #28a745; color: white; }
         #result { margin-top: 20px; font-weight: bold; color: #212529; padding: 12px; background: #e9ecef; display: inline-block; border-radius: 5px; width: 100%; max-width: 430px; box-sizing: border-box; word-break: break-all; }
     </style>
 </head>
@@ -21,6 +21,7 @@
     
     <div class="controls">
         <button id="start-btn">Nyalakan Kamera</button>
+        <!-- Tombol ini sekarang SELALU AKTIF sejak awal halaman dimuat -->
         <button id="switch-btn">Ganti Kamera 🔄</button>
     </div>
 
@@ -30,84 +31,70 @@
     <script>
         let html5Qrcode = new Html5Qrcode("reader");
         let isScanning = false;
-        let cameras = [];
-        let currentCameraIndex = 0;
+        
+        // Mode kamera default: "environment" = Kamera Belakang, "user" = Kamera Depan
+        let currentFacingMode = "environment"; 
 
         const startBtn = document.getElementById('start-btn');
         const switchBtn = document.getElementById('switch-btn');
 
-        // Langkah 1: Nyalakan kamera default (Belakang) secara paksa tanpa cek hardware dulu
-        function paksakanKameraMulai() {
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-            
-            // Menggunakan "environment" (kamera belakang) sebagai pemicu awal izin browser
+        // Fungsi menyalakan kamera dengan konfigurasi paling fleksibel (Mencegah OverconstrainedError)
+        function jalankanKamera(mode) {
+            // Konfigurasi dasar tanpa memaksakan ukuran box atau aspek rasio yang kaku
+            const config = { 
+                fps: 10
+            };
+
             html5Qrcode.start(
-                { facingMode: "environment" }, 
+                { facingMode: mode }, // Memanggil kategori arah kamera, bukan ID hardware spesifik
                 config,
                 (decodedText) => {
                     document.getElementById('result').innerText = `Sukses: ${decodedText}`;
                 },
-                (errorMessage) => { /* abaikan log error */ }
+                (errorMessage) => { /* abaikan error pencarian frame */ }
             ).then(() => {
                 isScanning = true;
                 startBtn.innerText = "Matikan Kamera";
                 startBtn.style.backgroundColor = "#dc3545";
-                
-                // Langkah 2: Setelah kamera menyala & izin disetujui, BARU cari daftar kamera hardware
-                bacaDaftarKameraSetelahAktif();
             }).catch(err => {
-                console.error(err);
-                alert("Gagal memuat kamera. Pastikan browser diizinkan mengakses kamera di setelan HP Xiaomi Anda.");
+                console.error("Gagal start kamera:", err);
+                alert("Kamera gagal dimuat. Pastikan izin kamera di browser Chrome Anda sudah diaktifkan.");
             });
         }
 
-        // Langkah 3: Ambil ID kamera fisik setelah enkripsi privasi browser terbuka
-        function bacaDaftarKameraSetelahAktif() {
-            Html5Qrcode.getCameras().then(devices => {
-                if (devices && devices.length > 1) {
-                    cameras = devices;
-                    // Tampilkan tombol ganti kamera karena terbukti hardware-nya lebih dari satu
-                    switchBtn.style.display = "inline-block";
-                }
-            }).catch(err => {
-                console.log("Sistem multi-kamera dikunci browser:", err);
-            });
-        }
-
-        // Langkah 4: Fungsi ganti kamera bergilir yang aman
-        function gantiKameraKameraBerikutnya() {
-            if (cameras.length <= 1) return;
-
-            currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-            // Matikan kamera yang aktif, lalu jalankan ID kamera berikutnya
-            html5Qrcode.stop().then(() => {
-                html5Qrcode.start(
-                    cameras[currentCameraIndex].id,
-                    config,
-                    (decodedText) => { document.getElementById('result').innerText = `Sukses: ${decodedText}`; },
-                    (errorMessage) => {}
-                );
-            }).catch(err => console.error(err));
-        }
-
-        // Event listener tombol utama
+        // Event listener untuk tombol Nyalakan/Matikan
         startBtn.addEventListener('click', () => {
             if (isScanning) {
                 html5Qrcode.stop().then(() => {
                     isScanning = false;
                     startBtn.innerText = "Nyalakan Kamera";
                     startBtn.style.backgroundColor = "#007bff";
-                    switchBtn.style.display = "none";
-                });
+                }).catch(err => console.error(err));
             } else {
-                paksakanKameraMulai();
+                jalankanKamera(currentFacingMode);
             }
         });
 
-        // Event listener tombol ganti kamera
-        switchBtn.addEventListener('click', gantiKameraKameraBerikutnya);
+        // Event listener untuk tombol Ganti Kamera (Metode Tukar Mode Langsung)
+        switchBtn.addEventListener('click', () => {
+            // Tukar orientasi kamera secara langsung
+            currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+
+            if (isScanning) {
+                // Jika kamera sedang menyala, hentikan dulu lalu nyalakan mode yang baru
+                html5Qrcode.stop().then(() => {
+                    jalankanKamera(currentFacingMode);
+                }).catch(err => {
+                    // Jika transisi gagal, langsung paksakan restart ke mode baru
+                    console.log("Transisi tertunda, mencoba paksa...", err);
+                    jalankanKamera(currentFacingMode);
+                });
+            } else {
+                // Jika kamera mati, beri tahu mode apa yang akan aktif saat dinyalakan nanti
+                const namaKamera = (currentFacingMode === "environment") ? "Belakang" : "Depan";
+                alert(`Kamera disiapkan ke: Kamera ${namaKamera}. Klik 'Nyalakan Kamera' untuk memulai.`);
+            }
+        });
     </script>
 </body>
 </html>
