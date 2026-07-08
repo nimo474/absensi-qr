@@ -4,15 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR Scanner Redmi Note 10 Pro</title>
-    <script src="https://unpkg.com"></script>
+    
+    <!-- MENGGUNAKAN CDN RESMI TERBARU YANG PASTI TERBACA OLEH BROWSER -->
+    <script src="https://cloudflare.com"></script>
+    
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f6f9; }
-        #reader { width: 100%; max-width: 450px; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden; }
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f6f9; margin: 0; }
+        h1 { font-size: 22px; color: #333; }
+        #reader { width: 100%; max-width: 450px; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden; min-height: 300px; }
         .controls { margin: 20px 0; }
-        button { padding: 14px 24px; font-size: 16px; margin: 5px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; }
+        
+        /* Tombol diperbesar agar sangat responsif terhadap tap di layar Xiaomi */
+        button { padding: 16px 28px; font-size: 16px; margin: 8px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; touch-action: manipulation; }
         #start-btn { background-color: #007bff; color: white; }
         #switch-btn { background-color: #28a745; color: white; }
-        #result { margin-top: 20px; font-weight: bold; color: #212529; padding: 12px; background: #e9ecef; display: inline-block; border-radius: 5px; width: 100%; max-width: 430px; box-sizing: border-box; word-break: break-all; }
+        
+        #result { margin-top: 20px; font-weight: bold; color: #212529; padding: 15px; background: #e9ecef; display: inline-block; border-radius: 5px; width: 100%; max-width: 430px; box-sizing: border-box; word-break: break-all; border: 1px solid #ccc; }
     </style>
 </head>
 <body>
@@ -21,7 +28,6 @@
     
     <div class="controls">
         <button id="start-btn">Nyalakan Kamera</button>
-        <!-- Tombol ini sekarang SELALU AKTIF sejak awal halaman dimuat -->
         <button id="switch-btn">Ganti Kamera 🔄</button>
     </div>
 
@@ -29,70 +35,79 @@
     <div id="result">Hasil scan akan muncul di sini.</div>
 
     <script>
-        let html5Qrcode = new Html5Qrcode("reader");
+        let html5QrCode;
         let isScanning = false;
-        
-        // Mode kamera default: "environment" = Kamera Belakang, "user" = Kamera Depan
-        let currentFacingMode = "environment"; 
+        let currentFacingMode = "environment"; // Mulai dengan kamera belakang
 
         const startBtn = document.getElementById('start-btn');
         const switchBtn = document.getElementById('switch-btn');
 
-        // Fungsi menyalakan kamera dengan konfigurasi paling fleksibel (Mencegah OverconstrainedError)
+        // Fungsi inisialisasi awal objek Scanner dengan aman setelah library cdnjs termuat
+        function initScanner() {
+            if (!html5QrCode) {
+                // Menggunakan objek global Html5Qrcode yang valid dari cdnjs
+                html5QrCode = new Html5Qrcode("reader");
+            }
+        }
+
         function jalankanKamera(mode) {
-            // Konfigurasi dasar tanpa memaksakan ukuran box atau aspek rasio yang kaku
+            initScanner();
+            
+            // Konfigurasi longgar tanpa batas rasio piksel agar hardware Xiaomi tidak mogok
             const config = { 
                 fps: 10
             };
 
-            html5Qrcode.start(
-                { facingMode: mode }, // Memanggil kategori arah kamera, bukan ID hardware spesifik
+            html5QrCode.start(
+                { facingMode: mode }, 
                 config,
                 (decodedText) => {
+                    // Jika QR terdeteksi
+                    document.getElementById('result').style.background = "#d4edda";
                     document.getElementById('result').innerText = `Sukses: ${decodedText}`;
                 },
-                (errorMessage) => { /* abaikan error pencarian frame */ }
+                (errorMessage) => { /* abaikan pencarian frame gagal */ }
             ).then(() => {
                 isScanning = true;
                 startBtn.innerText = "Matikan Kamera";
                 startBtn.style.backgroundColor = "#dc3545";
             }).catch(err => {
-                console.error("Gagal start kamera:", err);
-                alert("Kamera gagal dimuat. Pastikan izin kamera di browser Chrome Anda sudah diaktifkan.");
+                console.error("Gagal start:", err);
+                alert("Browser menolak akses kamera. Berikan izin kamera pada setelan situs Chrome.");
             });
         }
 
-        // Event listener untuk tombol Nyalakan/Matikan
-        startBtn.addEventListener('click', () => {
+        // Penanganan ketukan tombol Mulai/Matikan
+        startBtn.addEventListener('click', function() {
             if (isScanning) {
-                html5Qrcode.stop().then(() => {
+                html5QrCode.stop().then(() => {
                     isScanning = false;
                     startBtn.innerText = "Nyalakan Kamera";
                     startBtn.style.backgroundColor = "#007bff";
-                }).catch(err => console.error(err));
+                    document.getElementById('result').innerText = "Kamera dimatikan.";
+                    document.getElementById('result').style.background = "#e9ecef";
+                }).catch(err => console.error("Gagal stop:", err));
             } else {
                 jalankanKamera(currentFacingMode);
             }
         });
 
-        // Event listener untuk tombol Ganti Kamera (Metode Tukar Mode Langsung)
-        switchBtn.addEventListener('click', () => {
-            // Tukar orientasi kamera secara langsung
+        // Penanganan ketukan tombol Ganti Kamera
+        switchBtn.addEventListener('click', function() {
+            // Balikkan pilihan orientasi kamera
             currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
 
             if (isScanning) {
-                // Jika kamera sedang menyala, hentikan dulu lalu nyalakan mode yang baru
-                html5Qrcode.stop().then(() => {
+                // Matikan paksa kamera lama, langsung picu kamera baru
+                html5QrCode.stop().then(() => {
                     jalankanKamera(currentFacingMode);
                 }).catch(err => {
-                    // Jika transisi gagal, langsung paksakan restart ke mode baru
-                    console.log("Transisi tertunda, mencoba paksa...", err);
+                    // Fallback darurat jika proses stop menggantung
                     jalankanKamera(currentFacingMode);
                 });
             } else {
-                // Jika kamera mati, beri tahu mode apa yang akan aktif saat dinyalakan nanti
-                const namaKamera = (currentFacingMode === "environment") ? "Belakang" : "Depan";
-                alert(`Kamera disiapkan ke: Kamera ${namaKamera}. Klik 'Nyalakan Kamera' untuk memulai.`);
+                const targetKamera = (currentFacingMode === "environment") ? "Belakang" : "Depan";
+                document.getElementById('result').innerText = `Kamera dialihkan ke opsi: Kamera ${targetKamera}. Silakan ketuk 'Nyalakan Kamera'.`;
             }
         });
     </script>
