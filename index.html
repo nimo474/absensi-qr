@@ -3,66 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pemindai QR - Spesial Redmi Note 10 Pro</title>
-    <!-- Memuat pustaka dari CDN -->
+    <title>Pemindai QR Xiaomi Redmi Stabil</title>
     <script src="https://unpkg.com"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 15px; background: #f4f6f9; color: #333; }
-        h1 { font-size: 20px; margin-bottom: 20px; }
-        
-        /* Kontainer Utama Pemindai */
-        #reader { width: 100%; max-width: 450px; margin: 0 auto; background: white; border: 2px solid #ccc; border-radius: 12px; padding: 10px; box-sizing: border-box; }
-        
-        /* Mempercantik Tombol Bawaan dari Pustaka agar Mudah Dilihat di Layar Xiaomi */
-        #reader button { padding: 12px 20px !important; font-size: 15px !important; background-color: #007bff !important; color: white !important; border: none !important; border-radius: 6px !important; margin: 8px auto !important; cursor: pointer !important; display: inline-block !important; font-weight: bold; }
-        #reader button:hover { background-color: #0056b3 !important; }
-        
-        /* Elemen Hasil Pemindaian */
-        #result { margin-top: 20px; font-weight: bold; color: #212529; padding: 15px; background: #fff; display: inline-block; border-radius: 8px; width: 100%; max-width: 430px; box-sizing: border-box; border: 1px solid #dee2e6; box-shadow: 0 2px 4px rgba(0,0,0,0.05); word-break: break-all; }
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f6f9; }
+        #reader { width: 100%; max-width: 450px; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden; }
+        .controls { margin: 20px 0; }
+        button { padding: 14px 24px; font-size: 16px; margin: 5px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; }
+        #start-btn { background-color: #007bff; color: white; }
+        #switch-btn { background-color: #28a745; color: white; display: none; } /* Tersembunyi di awal demi keamanan */
+        #result { margin-top: 20px; font-weight: bold; color: #212529; padding: 12px; background: #e9ecef; display: inline-block; border-radius: 5px; width: 100%; max-width: 430px; box-sizing: border-box; word-break: break-all; }
     </style>
 </head>
 <body>
 
-    <h1>Pemindai QR (Stabil untuk Xiaomi)</h1>
+    <h1>Pemindai QR Code</h1>
     
-    <!-- Wadah Kamera (Sistem Pemilih Kamera Otomatis akan muncul di dalam sini) -->
+    <div class="controls">
+        <button id="start-btn">Nyalakan Kamera</button>
+        <button id="switch-btn">Ganti Kamera 🔄</button>
+    </div>
+
     <div id="reader"></div>
-    
-    <!-- Wadah Hasil -->
     <div id="result">Hasil scan akan muncul di sini.</div>
 
     <script>
-        function onScanSuccess(decodedText, decodedResult) {
-            // Berhasil memindai kode QR
-            const resultDiv = document.getElementById('result');
-            resultDiv.style.background = "#d4edda";
-            resultDiv.style.color = "#155724";
-            resultDiv.style.borderColor = "#c3e6cb";
-            resultDiv.innerText = `Teks Terdeteksi: ${decodedText}`;
+        let html5Qrcode = new Html5Qrcode("reader");
+        let isScanning = false;
+        let cameras = [];
+        let currentCameraIndex = 0;
+
+        const startBtn = document.getElementById('start-btn');
+        const switchBtn = document.getElementById('switch-btn');
+
+        // Langkah 1: Nyalakan kamera default (Belakang) secara paksa tanpa cek hardware dulu
+        function paksakanKameraMulai() {
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            
+            // Menggunakan "environment" (kamera belakang) sebagai pemicu awal izin browser
+            html5Qrcode.start(
+                { facingMode: "environment" }, 
+                config,
+                (decodedText) => {
+                    document.getElementById('result').innerText = `Sukses: ${decodedText}`;
+                },
+                (errorMessage) => { /* abaikan log error */ }
+            ).then(() => {
+                isScanning = true;
+                startBtn.innerText = "Matikan Kamera";
+                startBtn.style.backgroundColor = "#dc3545";
+                
+                // Langkah 2: Setelah kamera menyala & izin disetujui, BARU cari daftar kamera hardware
+                bacaDaftarKameraSetelahAktif();
+            }).catch(err => {
+                console.error(err);
+                alert("Gagal memuat kamera. Pastikan browser diizinkan mengakses kamera di setelan HP Xiaomi Anda.");
+            });
         }
 
-        function onScanFailure(error) {
-            // Kegagalan pemindaian biasa diabaikan agar performa ponsel tidak lambat
+        // Langkah 3: Ambil ID kamera fisik setelah enkripsi privasi browser terbuka
+        function bacaDaftarKameraSetelahAktif() {
+            Html5Qrcode.getCameras().then(devices => {
+                if (devices && devices.length > 1) {
+                    cameras = devices;
+                    // Tampilkan tombol ganti kamera karena terbukti hardware-nya lebih dari satu
+                    switchBtn.style.display = "inline-block";
+                }
+            }).catch(err => {
+                console.log("Sistem multi-kamera dikunci browser:", err);
+            });
         }
 
-        // Konfigurasi khusus untuk performa multi-kamera Android
-        const config = { 
-            fps: 10, 
-            qrbox: { width: 250, height: 250 },
-            // Menginstruksikan pustaka untuk menampilkan opsi tombol ganti kamera internal secara otomatis
-            rememberLastUsedCamera: true,
-            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
-        };
+        // Langkah 4: Fungsi ganti kamera bergilir yang aman
+        function gantiKameraKameraBerikutnya() {
+            if (cameras.length <= 1) return;
 
-        // Inisialisasi Scanner UI Bawaan
-        let html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", 
-            config,
-            /* verbose= */ false
-        );
-        
-        // Jalankan Scanner
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+            currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            // Matikan kamera yang aktif, lalu jalankan ID kamera berikutnya
+            html5Qrcode.stop().then(() => {
+                html5Qrcode.start(
+                    cameras[currentCameraIndex].id,
+                    config,
+                    (decodedText) => { document.getElementById('result').innerText = `Sukses: ${decodedText}`; },
+                    (errorMessage) => {}
+                );
+            }).catch(err => console.error(err));
+        }
+
+        // Event listener tombol utama
+        startBtn.addEventListener('click', () => {
+            if (isScanning) {
+                html5Qrcode.stop().then(() => {
+                    isScanning = false;
+                    startBtn.innerText = "Nyalakan Kamera";
+                    startBtn.style.backgroundColor = "#007bff";
+                    switchBtn.style.display = "none";
+                });
+            } else {
+                paksakanKameraMulai();
+            }
+        });
+
+        // Event listener tombol ganti kamera
+        switchBtn.addEventListener('click', gantiKameraKameraBerikutnya);
     </script>
 </body>
 </html>
