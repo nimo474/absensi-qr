@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Scanner Redmi Note 10 Pro - Stabil</title>
+    <title>QR Scanner Redmi Note 10 Pro - Final</title>
     
-    <!-- Menggunakan Pustaka Resmi Versi Ringan -->
+    <!-- Pustaka Resmi Terstabil -->
     <script src="https://cloudflare.com"></script>
     
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f6f9; margin: 0; }
         h1 { font-size: 20px; color: #333; margin-bottom: 5px; }
-        p { font-size: 14px; color: #666; margin-top: 0; }
+        p { font-size: 13px; color: #666; margin-top: 0; }
         
-        #reader { width: 100%; max-width: 420px; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden; min-height: 280px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        /* Kontainer hitam pembungkus video kamera */
+        #reader { width: 100%; max-width: 420px; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden; min-height: 280px; }
         
         .controls { margin: 20px 0; }
         button { padding: 15px 25px; font-size: 15px; margin: 5px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; touch-action: manipulation; }
@@ -26,7 +27,7 @@
 <body>
 
     <h1>Pemindai QR Code</h1>
-    <p>Dioptimalkan untuk Perangkat Multi-Lensa Android</p>
+    <p>Solusi Bypass Sensor Video Xiaomi</p>
     
     <div class="controls">
         <button id="start-btn">Nyalakan Kamera</button>
@@ -39,8 +40,7 @@
     <script>
         let html5QrCode;
         let isScanning = false;
-        // Gunakan string objek langsung untuk fleksibilitas API Android Chrome
-        let currentFacingMode = "environment"; 
+        let currentFacingMode = "environment"; // Target awal kamera belakang
 
         const startBtn = document.getElementById('start-btn');
         const switchBtn = document.getElementById('switch-btn');
@@ -50,13 +50,10 @@
                 html5QrCode = new Html5Qrcode("reader");
             }
             
-            // KONFIGURASI PALING LONGGAR: Tanpa aspek rasio atau batasan ukuran frame video
-            // Ini mencegah crash "OverconstrainedError" pada sensor 108MP Xiaomi
-            const config = { 
-                fps: 10
-            };
+            // PERBAIKAN: Mengosongkan objek config total {} agar browser Chrome 
+            // tidak memaksakan frame-rate atau aspek rasio ke lensa 108MP Xiaomi Anda
+            const config = {}; 
 
-            // Memanggil subsistem kamera dengan toleransi error tinggi
             html5QrCode.start(
                 { facingMode: mode }, 
                 config,
@@ -73,15 +70,21 @@
             }).catch(err => {
                 console.error("Gagal start:", err);
                 
-                // JIKA CHROMIUM ERROR, BERIKAN TIPS IZIN SITUS SECARA MANUAL
-                document.getElementById('result').style.background = "#f8d7da";
-                document.getElementById('result').style.color = "#721c24";
-                document.getElementById('result').innerHTML = `
-                    <b>Kamera diblokir browser.</b><br>
-                    1. Klik ikon gembok 🔒 di sebelah kiri bilah alamat URL Chrome Anda.<br>
-                    2. Aktifkan/Izinkan menu <b>Kamera</b>.<br>
-                    3. Muat ulang (refresh) halaman ini.
-                `;
+                // JIKA POLOSAN FACINGMODE MASIH DITOLAK, PAKSA MENGGUNAKAN DEFAULT SISTEM TANPA SYARAT
+                console.log("Mencoba fallback tanpa batasan lensa...");
+                html5QrCode.start(
+                    undefined, // Menghapus filter arah lensa, membiarkan Chrome memilih sensor mana saja yang siap
+                    config,
+                    (decodedText) => { document.getElementById('result').innerText = `Sukses: ${decodedText}`; },
+                    () => {}
+                ).then(() => {
+                    isScanning = true;
+                    startBtn.innerText = "Matikan Kamera";
+                    startBtn.style.backgroundColor = "#dc3545";
+                }).catch(fallbackErr => {
+                    document.getElementById('result').style.background = "#f8d7da";
+                    document.getElementById('result').innerText = "Kamera gagal rendering: " + fallbackErr;
+                });
             });
         }
 
@@ -94,7 +97,6 @@
                     startBtn.style.backgroundColor = "#007bff";
                     document.getElementById('result').innerText = "Kamera dimatikan.";
                     document.getElementById('result').style.background = "#e9ecef";
-                    document.getElementById('result').style.color = "#212529";
                 }).catch(err => console.error("Gagal stop:", err));
             } else {
                 jalankanKamera(currentFacingMode);
@@ -106,11 +108,11 @@
             currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
 
             if (isScanning) {
-                // Proses stop dan start diberikan jeda aman (safe timeout) agar OS MIUI tidak macet
+                // Memberikan jeda waktu 400ms agar hardware kamera Xiaomi sempat melakukan pelepasan memori (release)
                 html5QrCode.stop().then(() => {
                     setTimeout(() => {
                         jalankanKamera(currentFacingMode);
-                    }, 300); 
+                    }, 400); 
                 }).catch(err => {
                     jalankanKamera(currentFacingMode);
                 });
