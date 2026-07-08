@@ -3,26 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pemindai QR - Fitur Ganti Kamera</title>
+    <title>Pemindai QR - Ganti Kamera Stabil</title>
     <!-- Memuat pustaka dari CDN -->
     <script src="https://unpkg.com"></script>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background: #f9f9f9; }
         #reader { width: 100%; max-width: 500px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; }
         .controls { margin: 20px 0; }
-        button { padding: 12px 20px; font-size: 16px; margin: 5px; border-radius: 5px; cursor: pointer; font-weight: bold; border: none; }
+        button { padding: 14px 24px; font-size: 16px; margin: 5px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; }
         #start-btn { background-color: #007bff; color: white; }
-        #switch-btn { background-color: #6c757d; color: white; display: none; } /* Tersembunyi di awal */
-        #result { margin-top: 20px; font-weight: bold; color: #28a745; padding: 10px; background: #e2f0d9; display: inline-block; border-radius: 5px; }
+        #switch-btn { background-color: #28a745; color: white; }
+        #result { margin-top: 20px; font-weight: bold; color: #212529; padding: 12px; background: #e9ecef; display: inline-block; border-radius: 5px; width: 100%; max-width: 480px; box-sizing: border-box; word-break: break-all; }
     </style>
 </head>
 <body>
 
-    <h1>Pemindai QR Kode</h1>
+    <h1>Pemindai QR</h1>
     
-    <!-- Kontrol Tombol -->
+    <!-- Kontrol Tombol Utama -->
     <div class="controls">
-        <button id="start-btn">Mulai Pindai</button>
+        <button id="start-btn">Mulai Kamera</button>
         <button id="switch-btn">Ganti Kamera 🔄</button>
     </div>
 
@@ -33,73 +33,108 @@
     <div id="result">Hasil scan akan muncul di sini.</div>
 
     <script>
-        let html5Qrcode;
+        let html5Qrcode = new Html5Qrcode("reader");
+        let cameras = [];
+        let currentCameraIndex = 0;
         let isScanning = false;
-        // "environment" artinya kamera belakang, "user" artinya kamera depan
-        let currentFacingMode = "environment"; 
 
         const startBtn = document.getElementById('start-btn');
         const switchBtn = document.getElementById('switch-btn');
 
-        // Fungsi untuk menjalankan kamera berdasarkan Mode (Depan/Belakang)
-        function startScanning(facingMode) {
-            if (!html5Qrcode) {
-                html5Qrcode = new Html5Qrcode("reader");
-            }
-
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-            html5Qrcode.start(
-                { facingMode: facingMode }, // Menggunakan mode arah kamera, bukan ID perangkat
-                config,
-                (decodedText) => {
-                    document.getElementById('result').innerText = `Teks Terdeteksi: ${decodedText}`;
-                },
-                (errorMessage) => {
-                    // Log error pemindaian biasa diabaikan agar performa lancar
+        // 1. Ambil daftar kamera hardware langsung saat halaman dimuat
+        function loadCameras() {
+            Html5Qrcode.getCameras().then(devices => {
+                if (devices && devices.length > 0) {
+                    cameras = devices;
+                    // Utamakan kamera belakang di awal jika mendeteksi kata "back" atau "rear"
+                    const backCamIndex = devices.findIndex(cam => cam.label.toLowerCase().includes('back') || cam.label.toLowerCase().includes('rear'));
+                    if (backCamIndex !== -1) {
+                        currentCameraIndex = backCamIndex;
+                    }
+                } else {
+                    alert("Kamera tidak terdeteksi atau izin ditolak.");
                 }
-            ).then(() => {
-                isScanning = true;
-                startBtn.innerText = "Hentikan Pindai";
-                startBtn.style.backgroundColor = "#dc3545"; // Berubah merah saat aktif
-                switchBtn.style.display = "inline-block"; // Tampilkan tombol ganti kamera
             }).catch(err => {
-                console.error("Gagal mengakses kamera:", err);
-                alert("Gagal mengakses kamera. Pastikan izin kamera sudah diberikan di browser Anda.");
+                console.error("Gagal memuat daftar kamera:", err);
             });
         }
 
-        // Fungsi untuk menghentikan kamera
-        function stopScanning() {
-            if (html5Qrcode && isScanning) {
-                html5Qrcode.stop().then(() => {
-                    isScanning = false;
-                    startBtn.innerText = "Mulai Pindai";
-                    startBtn.style.backgroundColor = "#007bff"; // Kembali biru
-                    switchBtn.style.display = "none"; // Sembunyikan tombol ganti
-                }).catch(err => console.error("Gagal menghentikan kamera:", err));
+        // Jalankan pencarian kamera di awal
+        loadCameras();
+
+        // 2. Fungsi menyalakan kamera berdasarkan indeks terpilih
+        function startScanning(index) {
+            if (cameras.length === 0) {
+                alert("Daftar kamera belum siap, silakan muat ulang halaman atau periksa izin browser.");
+                return;
             }
+
+            const cameraId = cameras[index].id;
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            html5Qrcode.start(
+                cameraId, 
+                config,
+                (decodedText) => {
+                    document.getElementById('result').style.background = "#e2f0d9";
+                    document.getElementById('result').style.color = "#28a745";
+                    document.getElementById('result').innerText = `Teks Terdeteksi: ${decodedText}`;
+                },
+                (errorMessage) => {
+                    // Abaikan log pencarian QR biasa
+                }
+            ).then(() => {
+                isScanning = true;
+                startBtn.innerText = "Matikan Kamera";
+                startBtn.style.backgroundColor = "#dc3545";
+            }).catch(err => {
+                console.error("Gagal start kamera:", err);
+            });
         }
 
-        // Event Klik Tombol Utama (Mulai/Berhenti)
+        // 3. Fungsi mematikan kamera dengan aman
+        function stopScanning() {
+            return html5Qrcode.stop().then(() => {
+                isScanning = false;
+                startBtn.innerText = "Mulai Kamera";
+                startBtn.style.backgroundColor = "#007bff";
+            });
+        }
+
+        // Tombol Mulai/Matikan
         startBtn.addEventListener('click', () => {
             if (isScanning) {
                 stopScanning();
             } else {
-                startScanning(currentFacingMode);
+                if(cameras.length === 0) {
+                    // Coba panggil ulang jika sebelumnya izin diblokir
+                    Html5Qrcode.getCameras().then(devices => {
+                        cameras = devices;
+                        startScanning(currentCameraIndex);
+                    });
+                } else {
+                    startScanning(currentCameraIndex);
+                }
             }
         });
 
-        // Event Klik Tombol Ganti Kamera
+        // Tombol Ganti Kamera (Bergilir)
         switchBtn.addEventListener('click', () => {
+            if (cameras.length <= 1) {
+                alert("Perangkat Anda hanya mendeteksi 1 kamera aktif.");
+                return;
+            }
+
+            // Ganti ke indeks kamera berikutnya
+            currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
+
             if (isScanning) {
-                // Balikkan mode kamera
-                currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
-                
-                // Hentikan kamera saat ini lalu jalankan ulang dengan mode baru
-                html5Qrcode.stop().then(() => {
-                    startScanning(currentFacingMode);
+                // Matikan kamera aktif dulu, lalu langsung hidupkan kamera berikutnya
+                stopScanning().then(() => {
+                    startScanning(currentCameraIndex);
                 }).catch(err => console.error(err));
+            } else {
+                alert(`Kamera diganti ke opsi #${currentCameraIndex + 1}. Klik 'Mulai Kamera' untuk melihat.`);
             }
         });
     </script>
