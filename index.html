@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Scanner Redmi Note 10 Pro - Sukses</title>
+    <title>QR Scanner Redmi Note 10 Pro - Perbaikan Total</title>
     
-    <!-- Memuat Pustaka Resmi Terstabil -->
+    <!-- Memuat Pustaka Resmi Terstabil dari CDNjs -->
     <script src="https://cloudflare.com"></script>
     
     <style>
@@ -15,11 +15,12 @@
         
         .box-scanner { width: 100%; max-width: 420px; margin: 20px auto; background: white; padding: 20px; border-radius: 12px; box-sizing: border-box; border: 1px dashed #007bff; }
         
+        /* Tombol Pemicu Kamera Sistem */
         .file-upload-btn { display: inline-block; padding: 16px 30px; font-size: 16px; font-weight: bold; background-color: #007bff; color: white; border-radius: 8px; cursor: pointer; border: none; touch-action: manipulation; box-shadow: 0 4px 6px rgba(0,123,255,0.2); width: 100%; box-sizing: border-box; }
         .file-upload-btn:active { background-color: #0056b3; }
         #qr-input-file { display: none; }
         
-        /* Wadah Tersembunyi untuk Alokasi Memori Mesin Pengurai */
+        /* Wadah Tersembunyi Wajib untuk Inisialisasi Instance */
         #reader { width: 100%; max-width: 400px; margin: 0 auto; display: none; }
         
         #result { margin-top: 20px; font-weight: bold; color: #212529; padding: 15px; background: #e9ecef; display: inline-block; border-radius: 6px; width: 100%; max-width: 400px; box-sizing: border-box; word-break: break-all; border: 1px solid #ccc; text-align: left; }
@@ -28,89 +29,65 @@
 <body>
 
     <h1>Pemindai QR Code Xiaomi</h1>
-    <p>Akurasi Tinggi dengan Pengurai Berkas Tunggal Berhasil</p>
+    <p>Metode Pengurai File Gambar Tunggal Terverifikasi</p>
     
     <div class="box-scanner">
         <label for="qr-input-file" class="file-upload-btn">📷 Ambil Foto Kode QR</label>
+        <!-- Atribut capture="environment" membuka kamera belakang langsung -->
         <input type="file" id="qr-input-file" accept="image/*" capture="environment">
     </div>
 
-    <!-- Wadah internal wajib library -->
+    <!-- Wadah Rendering Element internal library -->
     <div id="reader"></div>
 
     <div id="result">Hasil pemindaian akan muncul di sini.</div>
 
     <script>
+        // Menginisialisasi engine html5-qrcode ke id "reader"
         const html5QrCode = new Html5Qrcode("reader"); 
         const fileInput = document.getElementById('qr-input-file');
         const resultDiv = document.getElementById('result');
 
         fileInput.addEventListener('change', function(e) {
-            if (e.target.files.length === 0) return;
+            // Jika pengguna membatalkan jepretan foto
+            if (e.target.files.length === 0) {
+                return;
+            }
 
-            // KOREKSI UTAMA: Mengambil indeks ke-0 ([0]) untuk mengirimkan objek satu File tunggal
-            const rawFile = e.target.files[0]; 
+            // PERBAIKAN UTAMA: Menggunakan indeks [0] untuk mengekstrak objek satu file foto tunggal
+            const imageFile = e.target.files[0]; 
             
             resultDiv.style.background = "#fff3cd";
             resultDiv.style.color = "#856404";
-            resultDiv.innerHTML = "⏳ Sedang memproses dan mengompresi gambar...";
+            resultDiv.style.borderColor = "#ffeeba";
+            resultDiv.innerText = "⏳ Sedang memproses gambar, mohon tunggu...";
 
-            // PROSES BYPASS RESOLUSI: Menggunakan FileReader dan Canvas untuk memperkecil ukuran foto megapiksel tinggi
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    
-                    // Kompresi ukuran gambar ke standar deteksi optimal pustaka (800 piksel)
-                    const max_size = 800;
-                    let width = img.width;
-                    let height = img.height;
-                    
-                    if (width > height) {
-                        if (width > max_size) { height *= max_size / width; width = max_size; }
-                    } else {
-                        if (height > max_size) { width *= max_size / height; height = max_size; }
-                    }
-                    
-                    canvas.width = width;
-                    canvas.height = height;
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // Mengubah Canvas kembali menjadi objek File tunggal biner yang siap diurai
-                    canvas.toBlob(function(blob) {
-                        const compressedFile = new File([blob], rawFile.name, {
-                            type: rawFile.type,
-                            lastModified: Date.now()
-                        });
-                        
-                        // Kirim berkas hasil kompresi yang ringan ke mesin pemindai html5-qrcode
-                        html5QrCode.scanFile(compressedFile, false)
-                            .then(decodedText => {
-                                resultDiv.style.background = "#d4edda";
-                                resultDiv.style.color = "#155724";
-                                resultDiv.style.borderColor = "#c3e6cb";
-                                resultDiv.innerHTML = `<b>🎉 Sukses Terdeteksi!</b><br><br><span style="font-weight:normal; color:#333;">${decodedText}</span>`;
-                            })
-                            .catch(err => {
-                                resultDiv.style.background = "#f8d7da";
-                                resultDiv.style.color = "#721c24";
-                                resultDiv.style.borderColor = "#f5c6cb";
-                                resultDiv.innerHTML = `
-                                    <b>Gagal Membaca Gambar ❌</b><br><br>
-                                    Pola QR tidak ditemukan atau gambar terlalu blur.<br><br>
-                                    <span style="font-size:12px; font-weight:normal; color:#555; display:block;">
-                                    <b>Tips Sukses:</b> Dekatkan kamera ke kode QR (jarak ±15cm), tunggu lensa melakukan fokus otomatis, lalu ambil foto kembali.
-                                    </span>
-                                `;
-                                console.error(err);
-                            });
-                    }, rawFile.type);
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(rawFile);
+            // Menjalankan metode ekstraksi piksel QR dari file gambar tunggal
+            html5QrCode.scanFile(imageFile, false)
+                .then(decodedText => {
+                    // Sukses mengekstrak teks atau tautan dari kode QR
+                    resultDiv.style.background = "#d4edda";
+                    resultDiv.style.color = "#155724";
+                    resultDiv.style.borderColor = "#c3e6cb";
+                    resultDiv.innerHTML = `<b>🎉 Sukses Terdeteksi!</b><br><br>${decodedText}`;
+                })
+                .catch(err => {
+                    // Jika jepretan kamera buram, blur, tidak pas di tengah, atau terlalu silau
+                    resultDiv.style.background = "#f8d7da";
+                    resultDiv.style.color = "#721c24";
+                    resultDiv.style.borderColor = "#f5c6cb";
+                    resultDiv.innerHTML = `
+                        <b>Gagal Membaca Gambar ❌</b><br><br>
+                        Sistem tidak menemukan pola Kode QR yang valid pada foto Anda.<br><br>
+                        <span style="font-size:12px; font-weight:normal; color:#555; display:block; text-align:left;">
+                        <b>Tips Jepretan Sukses di Redmi:</b><br>
+                        1. Dekatkan kamera ke kode QR (jarak ideal ±15 cm).<br>
+                        2. Pastikan kamera berhasil melakukan <b>Fokus</b> otomatis (gambar tidak blur) sebelum menjepret.<br>
+                        3. Hindari pantulan lampu silau atau bayangan gelap pada permukaan kode QR.
+                        </span>
+                    `;
+                    console.error("Detail log kesalahan:", err);
+                });
         });
     </script>
 </body>
