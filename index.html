@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Scanner Redmi Note 10 Pro - Anti Gagal</title>
+    <title>QR Scanner Redmi Note 10 Pro - Fix</title>
     
     <!-- Menggunakan CDN Resmi Stabil -->
     <script src="https://cloudflare.com"></script>
@@ -15,60 +15,73 @@
         
         .box-scanner { width: 100%; max-width: 420px; margin: 20px auto; background: white; padding: 20px; border-radius: 12px; box-sizing: border-box; border: 1px dashed #007bff; }
         
-        /* Tombol Input File yang Disamarkan Menjadi Tombol Keren */
+        /* Tombol Input File */
         .file-upload-btn { display: inline-block; padding: 16px 30px; font-size: 16px; font-weight: bold; background-color: #007bff; color: white; border-radius: 8px; cursor: pointer; border: none; touch-action: manipulation; box-shadow: 0 4px 6px rgba(0,123,255,0.2); }
         .file-upload-btn:active { background-color: #0056b3; }
-        #qr-input-file { display: none; } /* Sembunyikan elemen input asli */
+        #qr-input-file { display: none; }
+        
+        /* Wadah Tersembunyi Khusus untuk Rendering Mesin Pemindai (Wajib Ada) */
+        #reader { width: 600px; height: 600px; display: none; }
         
         #result { margin-top: 20px; font-weight: bold; color: #212529; padding: 15px; background: #e9ecef; display: inline-block; border-radius: 6px; width: 100%; max-width: 400px; box-sizing: border-box; word-break: break-all; border: 1px solid #ccc; }
     </style>
 </head>
 <body>
 
-    <h1>Pemindai QR Code</h1>
-    <p>Solusi Pemindaian Gambar File Mandiri (Kompatibel 100% dengan Xiaomi Redmi)</p>
+    <h1>Pemindai QR Code Xiaomi</h1>
+    <p>Pengambilan Foto Kamera Bawaan Sistem Berhasil</p>
     
     <div class="box-scanner">
-        <!-- Label ini bertindak sebagai tombol pengetuk -->
-        <label for="qr-input-file" class="file-upload-btn">📷 Pindai Kode QR Anda</label>
-        <!-- Atribut capture="environment" memaksa Android langsung membuka aplikasi kamera sistem -->
+        <label for="qr-input-file" class="file-upload-btn">📷 Ambil Foto Kode QR</label>
         <input type="file" id="qr-input-file" accept="image/*" capture="environment">
     </div>
+
+    <!-- Wadah wajib untuk mesin rendering pustaka -->
+    <div id="reader"></div>
 
     <div id="result">Hasil pemindaian akan muncul di sini.</div>
 
     <script>
-        // Pastikan objek pustaka siap
-        const html5QrCode = new Html5Qrcode("result"); // Taruh penampung instance internal
+        // Menginisialisasi instance mesin pemindai ke elemen wadah khusus 'reader'
+        const html5QrCode = new Html5Qrcode("reader"); 
         const fileInput = document.getElementById('qr-input-file');
         const resultDiv = document.getElementById('result');
 
-        fileInput.addEventListener('change', e => {
+        fileInput.addEventListener('change', function(e) {
             if (e.target.files.length === 0) {
                 return;
             }
 
-            const imageFile = e.target.files[0];
+            // PERBAIKAN UTAMA: Mengambil indeks file pertama [0], bukan objek array utuh
+            const imageFile = e.target.files[0]; 
+            
             resultDiv.style.background = "#fff3cd";
             resultDiv.style.color = "#856404";
-            resultDiv.innerText = "Sedang memproses gambar...";
+            resultDiv.innerText = "⏳ Sedang memproses gambar, mohon tunggu...";
 
-            // Memanggil API pembaca gambar bawaan pustaka html5-qrcode
-            html5QrCode.scanFile(imageFile, true)
+            // Memulai proses ekstraksi QR dari gambar hasil jepretan kamera Xiaomi Anda
+            // Parameter kedua 'false' diatur agar gambar mentah tidak merusak layout CSS halaman Anda
+            html5QrCode.scanFile(imageFile, false)
                 .then(decodedText => {
-                    // Sukses membaca kode QR dari gambar
+                    // Sukses mengekstrak teks/link dari kode QR
                     resultDiv.style.background = "#d4edda";
                     resultDiv.style.color = "#155724";
                     resultDiv.style.borderColor = "#c3e6cb";
-                    resultDiv.innerHTML = `<b>Sukses Terdeteksi!</b><br><br>${decodedText}`;
+                    resultDiv.innerHTML = `<b>🎉 Sukses Terdeteksi!</b><br><br>${decodedText}`;
                 })
                 .catch(err => {
-                    // Jika gambar blur atau tidak ada kode QR di dalamnya
+                    // Jika jepretan kamera buram, terlalu jauh, atau tidak mendeteksi bentuk QR
                     resultDiv.style.background = "#f8d7da";
                     resultDiv.style.color = "#721c24";
                     resultDiv.style.borderColor = "#f5c6cb";
-                    resultDiv.innerHTML = `<b>Gagal Membaca:</b> Kode QR tidak jelas atau tidak ditemukan dalam gambar. Silakan coba ambil foto kembali.`;
-                    console.error(err);
+                    resultDiv.innerHTML = `
+                        <b>Gagal Membaca Gambar ❌</b><br><br>
+                        Sistem tidak menemukan pola Kode QR yang jelas pada foto.<br>
+                        <span style="font-size:12px; font-weight:normal; color:#555;">
+                        Tips: Pastikan kamera tegak lurus, gambar tidak buram (blur), dan kode QR berada di posisi tengah saat difoto.
+                        </span>
+                    `;
+                    console.error("Detail Error:", err);
                 });
         });
     </script>
