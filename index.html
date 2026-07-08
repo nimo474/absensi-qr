@@ -3,23 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Scanner Redmi Note 10 Pro - Final</title>
+    <title>QR Scanner Redmi Note 10 Pro - Anti Gagal</title>
     
-    <!-- Pustaka Resmi Terstabil -->
+    <!-- Menggunakan CDN Resmi Stabil -->
     <script src="https://cloudflare.com"></script>
     
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f6f9; margin: 0; }
         h1 { font-size: 20px; color: #333; margin-bottom: 5px; }
-        p { font-size: 13px; color: #666; margin-top: 0; }
+        p { font-size: 13px; color: #666; margin-top: 0; padding: 0 10px; }
         
-        /* Kontainer hitam pembungkus video kamera */
-        #reader { width: 100%; max-width: 420px; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden; min-height: 280px; }
+        .box-scanner { width: 100%; max-width: 420px; margin: 20px auto; background: white; padding: 20px; border-radius: 12px; box-sizing: border-box; border: 1px dashed #007bff; }
         
-        .controls { margin: 20px 0; }
-        button { padding: 15px 25px; font-size: 15px; margin: 5px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; touch-action: manipulation; }
-        #start-btn { background-color: #007bff; color: white; }
-        #switch-btn { background-color: #28a745; color: white; }
+        /* Tombol Input File yang Disamarkan Menjadi Tombol Keren */
+        .file-upload-btn { display: inline-block; padding: 16px 30px; font-size: 16px; font-weight: bold; background-color: #007bff; color: white; border-radius: 8px; cursor: pointer; border: none; touch-action: manipulation; box-shadow: 0 4px 6px rgba(0,123,255,0.2); }
+        .file-upload-btn:active { background-color: #0056b3; }
+        #qr-input-file { display: none; } /* Sembunyikan elemen input asli */
         
         #result { margin-top: 20px; font-weight: bold; color: #212529; padding: 15px; background: #e9ecef; display: inline-block; border-radius: 6px; width: 100%; max-width: 400px; box-sizing: border-box; word-break: break-all; border: 1px solid #ccc; }
     </style>
@@ -27,99 +26,50 @@
 <body>
 
     <h1>Pemindai QR Code</h1>
-    <p>Solusi Bypass Sensor Video Xiaomi</p>
+    <p>Solusi Pemindaian Gambar File Mandiri (Kompatibel 100% dengan Xiaomi Redmi)</p>
     
-    <div class="controls">
-        <button id="start-btn">Nyalakan Kamera</button>
-        <button id="switch-btn">Ganti Kamera 🔄</button>
+    <div class="box-scanner">
+        <!-- Label ini bertindak sebagai tombol pengetuk -->
+        <label for="qr-input-file" class="file-upload-btn">📷 Pindai Kode QR Anda</label>
+        <!-- Atribut capture="environment" memaksa Android langsung membuka aplikasi kamera sistem -->
+        <input type="file" id="qr-input-file" accept="image/*" capture="environment">
     </div>
 
-    <div id="reader"></div>
-    <div id="result">Hasil scan akan muncul di sini.</div>
+    <div id="result">Hasil pemindaian akan muncul di sini.</div>
 
     <script>
-        let html5QrCode;
-        let isScanning = false;
-        let currentFacingMode = "environment"; // Target awal kamera belakang
+        // Pastikan objek pustaka siap
+        const html5QrCode = new Html5Qrcode("result"); // Taruh penampung instance internal
+        const fileInput = document.getElementById('qr-input-file');
+        const resultDiv = document.getElementById('result');
 
-        const startBtn = document.getElementById('start-btn');
-        const switchBtn = document.getElementById('switch-btn');
-
-        function jalankanKamera(mode) {
-            if (!html5QrCode) {
-                html5QrCode = new Html5Qrcode("reader");
+        fileInput.addEventListener('change', e => {
+            if (e.target.files.length === 0) {
+                return;
             }
-            
-            // PERBAIKAN: Mengosongkan objek config total {} agar browser Chrome 
-            // tidak memaksakan frame-rate atau aspek rasio ke lensa 108MP Xiaomi Anda
-            const config = {}; 
 
-            html5QrCode.start(
-                { facingMode: mode }, 
-                config,
-                (decodedText) => {
-                    document.getElementById('result').style.background = "#d4edda";
-                    document.getElementById('result').style.color = "#155724";
-                    document.getElementById('result').innerText = `Sukses: ${decodedText}`;
-                },
-                (errorMessage) => { /* abaikan error pencarian frame */ }
-            ).then(() => {
-                isScanning = true;
-                startBtn.innerText = "Matikan Kamera";
-                startBtn.style.backgroundColor = "#dc3545";
-            }).catch(err => {
-                console.error("Gagal start:", err);
-                
-                // JIKA POLOSAN FACINGMODE MASIH DITOLAK, PAKSA MENGGUNAKAN DEFAULT SISTEM TANPA SYARAT
-                console.log("Mencoba fallback tanpa batasan lensa...");
-                html5QrCode.start(
-                    undefined, // Menghapus filter arah lensa, membiarkan Chrome memilih sensor mana saja yang siap
-                    config,
-                    (decodedText) => { document.getElementById('result').innerText = `Sukses: ${decodedText}`; },
-                    () => {}
-                ).then(() => {
-                    isScanning = true;
-                    startBtn.innerText = "Matikan Kamera";
-                    startBtn.style.backgroundColor = "#dc3545";
-                }).catch(fallbackErr => {
-                    document.getElementById('result').style.background = "#f8d7da";
-                    document.getElementById('result').innerText = "Kamera gagal rendering: " + fallbackErr;
+            const imageFile = e.target.files[0];
+            resultDiv.style.background = "#fff3cd";
+            resultDiv.style.color = "#856404";
+            resultDiv.innerText = "Sedang memproses gambar...";
+
+            // Memanggil API pembaca gambar bawaan pustaka html5-qrcode
+            html5QrCode.scanFile(imageFile, true)
+                .then(decodedText => {
+                    // Sukses membaca kode QR dari gambar
+                    resultDiv.style.background = "#d4edda";
+                    resultDiv.style.color = "#155724";
+                    resultDiv.style.borderColor = "#c3e6cb";
+                    resultDiv.innerHTML = `<b>Sukses Terdeteksi!</b><br><br>${decodedText}`;
+                })
+                .catch(err => {
+                    // Jika gambar blur atau tidak ada kode QR di dalamnya
+                    resultDiv.style.background = "#f8d7da";
+                    resultDiv.style.color = "#721c24";
+                    resultDiv.style.borderColor = "#f5c6cb";
+                    resultDiv.innerHTML = `<b>Gagal Membaca:</b> Kode QR tidak jelas atau tidak ditemukan dalam gambar. Silakan coba ambil foto kembali.`;
+                    console.error(err);
                 });
-            });
-        }
-
-        // Aksi Tombol Mulai/Matikan
-        startBtn.addEventListener('click', function() {
-            if (isScanning) {
-                html5QrCode.stop().then(() => {
-                    isScanning = false;
-                    startBtn.innerText = "Nyalakan Kamera";
-                    startBtn.style.backgroundColor = "#007bff";
-                    document.getElementById('result').innerText = "Kamera dimatikan.";
-                    document.getElementById('result').style.background = "#e9ecef";
-                }).catch(err => console.error("Gagal stop:", err));
-            } else {
-                jalankanKamera(currentFacingMode);
-            }
-        });
-
-        // Aksi Tombol Ganti Kamera
-        switchBtn.addEventListener('click', function() {
-            currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
-
-            if (isScanning) {
-                // Memberikan jeda waktu 400ms agar hardware kamera Xiaomi sempat melakukan pelepasan memori (release)
-                html5QrCode.stop().then(() => {
-                    setTimeout(() => {
-                        jalankanKamera(currentFacingMode);
-                    }, 400); 
-                }).catch(err => {
-                    jalankanKamera(currentFacingMode);
-                });
-            } else {
-                const targetKamera = (currentFacingMode === "environment") ? "Belakang" : "Depan";
-                document.getElementById('result').innerText = `Kamera dialihkan ke: Kamera ${targetKamera}. Silakan ketuk 'Nyalakan Kamera'.`;
-            }
         });
     </script>
 </body>
