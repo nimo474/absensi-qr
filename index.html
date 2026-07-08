@@ -1,83 +1,124 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scanner Absensi QR</title>
-  <script src="https://jsdelivr.net"></script>
-  <script src="https://unpkg.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uji Coba Pemindai QR & Ganti Kamera</title>
+    <!-- Memuat pustaka dari CDN -->
+    <script src="https://unpkg.com"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f9f9f9; }
+        #reader { width: 100%; max-width: 500px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; }
+        .controls { margin: 20px 0; }
+        select, button { padding: 10px 15px; font-size: 16px; margin: 5px; border-radius: 5px; border: 1px solid #ccc; }
+        button { background-color: #007bff; color: white; cursor: pointer; border: none; }
+        button:hover { background-color: #0056b3; }
+        #result { margin-top: 20px; font-weight: bold; color: #28a745; padding: 10px; background: #e2f0d9; display: inline-block; border-radius: 5px; }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+<body>
 
-  <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md text-center">
-    <h1 class="text-2xl font-bold text-gray-800 mb-2">Scanner Absensi</h1>
-    <p class="text-sm text-gray-500 mb-6">Gunakan tombol di bawah untuk memindai kartu anggota</p>
+    <h1>Pemindai QR dengan Fitur Ganti Kamera</h1>
     
-    <!-- Tombol Utama untuk Akses Kamera HP Konvensional -->
-    <label class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl cursor-pointer shadow-md transition-all text-lg mb-6">
-      📸 Ambil Foto / Scan QR
-      <input type="file" id="qr-input-file" accept="image/*" capture="environment" class="hidden">
-    </label>
-
-    <!-- Kontrak Penampung Proses (Hidden) -->
-    <div id="reader" class="hidden"></div>
-    
-    <!-- Status Hasil Input -->
-    <div id="status" class="mt-4 p-4 rounded-xl text-sm font-semibold bg-gray-50 text-gray-600">
-      Siap melakukan pemindaian...
+    <!-- Kontrol Pemilih Kamera -->
+    <div class="controls">
+        <select id="camera-select">
+            <option value="">Memuat kamera...</option>
+        </select>
+        <button id="toggle-scan-btn">Mulai Scan</button>
     </div>
-  </div>
 
-  <script>
-    // ⚠️ PASTIKAN LINK WEB APP GOOGLE APPS SCRIPT ANDA TETAP TERPASANG DI SINI
-    // const WEB_APP_URL = "https://google.com"; 
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyzmH-vYjYIRW396f0pnXeFiDEs6pnOwsGj4viHvRGM1ZZdsBGBFqMthRUMbrAUwYVd/exec";
+    <!-- Wadah Kamera -->
+    <div id="reader"></div>
     
-    const html5QrCode = new Html5Qrcode("reader");
-    const fileInput = document.getElementById('qr-input-file');
-    const statusDiv = document.getElementById('status');
+    <!-- Wadah Hasil -->
+    <div id="result">Hasil scan akan muncul di sini.</div>
 
-    fileInput.addEventListener('change', e => {
-      if (e.target.files.length == 0) return;
-      
-      const imageFile = e.target.files[0];
-      statusDiv.className = "mt-4 p-4 rounded-xl text-sm font-semibold bg-blue-100 text-blue-700 animate-pulse";
-      statusDiv.innerText = "Membaca QR Code dan memproses data...";
+    <script>
+        let html5Qrcode;
+        let isScanning = false;
+        const cameraSelect = document.getElementById('camera-select');
+        const toggleBtn = document.getElementById('toggle-scan-btn');
 
-      // Membaca file gambar yang diambil dari kamera HP
-      html5QrCode.scanFile(imageFile, true)
-      .then(decodedText => {
-        kirimKeGoogleSheets(decodedText);
-      })
-      .catch(err => {
-        statusDiv.className = "mt-4 p-4 rounded-xl text-sm font-semibold bg-red-100 text-red-700";
-        statusDiv.innerText = "Gagal membaca QR Code. Pastikan posisi gambar tegak, fokus, dan jelas!";
-      });
-    });
+        // 1. Dapatkan daftar kamera yang tersedia saat halaman dimuat
+        Html5Qrcode.getCameras().then(devices => {
+            cameraSelect.innerHTML = '';
+            if (devices && devices.length) {
+                devices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.id;
+                    // Tampilkan label kamera atau fallback ke nomor kamera
+                    option.text = device.label || `Kamera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+            } else {
+                cameraSelect.innerHTML = '<option value="">Kamera tidak ditemukan</option>';
+            }
+        }).catch(err => {
+            console.error("Gagal mendapatkan kamera:", err);
+            cameraSelect.innerHTML = '<option value="">Izin kamera ditolak</option>';
+        });
 
-    function kirimKeGoogleSheets(qrData) {
-      statusDiv.innerText = "Mengirim data ke Google Sheets...";
-      
-      fetch(WEB_APP_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ qrData: qrData })
-      })
-      .then(() => {
-        statusDiv.className = "mt-4 p-4 rounded-xl text-sm font-semibold bg-green-100 text-green-700";
-        statusDiv.innerText = "Absensi berhasil dicatat ke database secara realtime!";
-        
-        setTimeout(() => {
-          statusDiv.className = "mt-4 p-4 rounded-xl text-sm font-semibold bg-gray-50 text-gray-600";
-          statusDiv.innerText = "Siap untuk memindai kartu berikutnya...";
-        }, 4000);
-      })
-      .catch(error => {
-        statusDiv.className = "mt-4 p-4 rounded-xl text-sm font-semibold bg-red-100 text-red-700";
-        statusDiv.innerText = "Gagal kirim data ke server: " + error.message;
-      });
-    }
-  </script>
+        // 2. Fungsi untuk mulai memindai
+        function startScanning(cameraId) {
+            html5Qrcode = new Html5Qrcode("reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            html5Qrcode.start(
+                cameraId, 
+                config,
+                (decodedText) => {
+                    // Berhasil scan
+                    document.getElementById('result').innerText = `Teks Terdeteksi: ${decodedText}`;
+                },
+                (errorMessage) => {
+                    // Gagal deteksi (diabaikan agar konsol bersih)
+                }
+            ).then(() => {
+                isScanning = true;
+                toggleBtn.innerText = "Hentikan Scan";
+                toggleBtn.style.backgroundColor = "#dc3545"; // Merah
+            }).catch(err => {
+                console.error("Gagal menjalankan kamera:", err);
+            });
+        }
+
+        // 3. Fungsi untuk menghentikan pemindai
+        function stopScanning() {
+            if (html5Qrcode) {
+                html5Qrcode.stop().then(() => {
+                    isScanning = false;
+                    toggleBtn.innerText = "Mulai Scan";
+                    toggleBtn.style.backgroundColor = "#007bff"; // Biru
+                }).catch(err => {
+                    console.error("Gagal menghentikan kamera:", err);
+                });
+            }
+        }
+
+        // 4. Event Listener untuk Tombol Mulai/Berhenti
+        toggleBtn.addEventListener('click', () => {
+            if (isScanning) {
+                stopScanning();
+            } else {
+                const selectedCameraId = cameraSelect.value;
+                if (selectedCameraId) {
+                    startScanning(selectedCameraId);
+                } else {
+                    alert("Silakan pilih kamera terlebih dahulu.");
+                }
+            }
+        });
+
+        // 5. Event Listener saat pengguna mengubah pilihan kamera secara aktif
+        cameraSelect.addEventListener('change', () => {
+            if (isScanning) {
+                // Hentikan kamera yang aktif terlebih dahulu, lalu jalankan kamera baru
+                html5Qrcode.stop().then(() => {
+                    startScanning(cameraSelect.value);
+                });
+            }
+        });
+    </script>
 </body>
 </html>
