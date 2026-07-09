@@ -2,93 +2,269 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Scanner Redmi Note 10 Pro - Perbaikan Total</title>
-    
-    <!-- Memuat Pustaka Resmi Terstabil dari CDNjs -->
-    <script src="https://cloudflare.com"></script>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Absensi QR - Redmi Note 10 Pro</title>
+
+    <!-- FIX: sebelumnya <script src="https://cloudflare.com"> (bukan library, jadi Html5Qrcode selalu undefined) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f6f9; margin: 0; }
-        h1 { font-size: 20px; color: #333; margin-bottom: 5px; }
-        p { font-size: 13px; color: #666; margin-top: 0; padding: 0 10px; }
-        
-        .box-scanner { width: 100%; max-width: 420px; margin: 20px auto; background: white; padding: 20px; border-radius: 12px; box-sizing: border-box; border: 1px dashed #007bff; }
-        
-        /* Tombol Pemicu Kamera Sistem */
-        .file-upload-btn { display: inline-block; padding: 16px 30px; font-size: 16px; font-weight: bold; background-color: #007bff; color: white; border-radius: 8px; cursor: pointer; border: none; touch-action: manipulation; box-shadow: 0 4px 6px rgba(0,123,255,0.2); width: 100%; box-sizing: border-box; }
-        .file-upload-btn:active { background-color: #0056b3; }
-        #qr-input-file { display: none; }
-        
-        /* Wadah Tersembunyi Wajib untuk Inisialisasi Instance */
-        #reader { width: 100%; max-width: 400px; margin: 0 auto; display: none; }
-        
-        #result { margin-top: 20px; font-weight: bold; color: #212529; padding: 15px; background: #e9ecef; display: inline-block; border-radius: 6px; width: 100%; max-width: 400px; box-sizing: border-box; word-break: break-all; border: 1px solid #ccc; text-align: left; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, Roboto, sans-serif;
+            text-align: center;
+            padding: 16px;
+            background: #f4f6f9;
+            margin: 0;
+        }
+        h1 { font-size: 20px; color: #222; margin-bottom: 4px; }
+        p.subtitle { font-size: 13px; color: #666; margin-top: 0; padding: 0 10px; }
+
+        .box-scanner {
+            width: 100%;
+            max-width: 420px;
+            margin: 16px auto;
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid #dde3ea;
+        }
+
+        /* Wadah live camera */
+        #reader {
+            width: 100%;
+            max-width: 380px;
+            margin: 0 auto;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 15px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        #btn-start { background: #007bff; color: white; }
+        #btn-start:active { background: #0056b3; }
+        #btn-stop { background: #6c757d; color: white; display: none; }
+        #btn-stop:active { background: #545b62; }
+        #btn-scan-again { background: #28a745; color: white; display: none; }
+        #btn-scan-again:active { background: #1e7e34; }
+
+        #status {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #856404;
+            min-height: 18px;
+        }
+
+        #result {
+            margin-top: 16px;
+            font-weight: bold;
+            color: #212529;
+            padding: 15px;
+            background: #e9ecef;
+            display: none;
+            border-radius: 6px;
+            width: 100%;
+            max-width: 400px;
+            box-sizing: border-box;
+            word-break: break-word;
+            border: 1px solid #ccc;
+            text-align: left;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #result .field { margin: 4px 0; font-size: 15px; }
+        #result .field span.label { color: #555; font-weight: normal; font-size: 12px; display: block; }
+        #result .raw {
+            margin-top: 8px;
+            font-size: 11px;
+            font-weight: normal;
+            color: #888;
+            border-top: 1px dashed #ccc;
+            padding-top: 6px;
+        }
     </style>
 </head>
 <body>
 
-    <h1>Pemindai QR Code Xiaomi</h1>
-    <p>Metode Pengurai File Gambar Tunggal Terverifikasi</p>
-    
-    <div class="box-scanner">
-        <label for="qr-input-file" class="file-upload-btn">📷 Ambil Foto Kode QR</label>
-        <!-- Atribut capture="environment" membuka kamera belakang langsung -->
-        <input type="file" id="qr-input-file" accept="image/*" capture="environment">
-    </div>
+    <h1>📋 Absensi QR Anggota</h1>
+    <p class="subtitle">Arahkan kamera ke kode QR anggota (Nama &amp; NIK)</p>
 
-    <!-- Wadah Rendering Element internal library -->
-    <div id="reader"></div>
+    <div class="box-scanner">
+        <div id="reader"></div>
+
+        <div class="controls">
+            <button id="btn-start">📷 Mulai Pindai</button>
+            <button id="btn-stop">⏹ Hentikan</button>
+            <button id="btn-scan-again">🔄 Pindai Lagi</button>
+        </div>
+
+        <div id="status"></div>
+    </div>
 
     <div id="result">Hasil pemindaian akan muncul di sini.</div>
 
     <script>
-        // Menginisialisasi engine html5-qrcode ke id "reader"
-        const html5QrCode = new Html5Qrcode("reader"); 
-        const fileInput = document.getElementById('qr-input-file');
+        const READER_ID = "reader";
+        let html5QrCode = null;
+        let isScanning = false;
+
+        const btnStart = document.getElementById('btn-start');
+        const btnStop = document.getElementById('btn-stop');
+        const btnScanAgain = document.getElementById('btn-scan-again');
+        const statusEl = document.getElementById('status');
         const resultDiv = document.getElementById('result');
 
-        fileInput.addEventListener('change', function(e) {
-            // Jika pengguna membatalkan jepretan foto
-            if (e.target.files.length === 0) {
+        // Pastikan library berhasil dimuat sebelum dipakai
+        window.addEventListener('load', () => {
+            if (typeof Html5Qrcode === 'undefined') {
+                statusEl.style.color = '#721c24';
+                statusEl.innerText = '⚠️ Gagal memuat pustaka pemindai QR. Periksa koneksi internet.';
+                btnStart.disabled = true;
                 return;
             }
-
-            // PERBAIKAN UTAMA: Menggunakan indeks [0] untuk mengekstrak objek satu file foto tunggal
-            const imageFile = e.target.files[0]; 
-            
-            resultDiv.style.background = "#fff3cd";
-            resultDiv.style.color = "#856404";
-            resultDiv.style.borderColor = "#ffeeba";
-            resultDiv.innerText = "⏳ Sedang memproses gambar, mohon tunggu...";
-
-            // Menjalankan metode ekstraksi piksel QR dari file gambar tunggal
-            html5QrCode.scanFile(imageFile, false)
-                .then(decodedText => {
-                    // Sukses mengekstrak teks atau tautan dari kode QR
-                    resultDiv.style.background = "#d4edda";
-                    resultDiv.style.color = "#155724";
-                    resultDiv.style.borderColor = "#c3e6cb";
-                    resultDiv.innerHTML = `<b>🎉 Sukses Terdeteksi!</b><br><br>${decodedText}`;
-                })
-                .catch(err => {
-                    // Jika jepretan kamera buram, blur, tidak pas di tengah, atau terlalu silau
-                    resultDiv.style.background = "#f8d7da";
-                    resultDiv.style.color = "#721c24";
-                    resultDiv.style.borderColor = "#f5c6cb";
-                    resultDiv.innerHTML = `
-                        <b>Gagal Membaca Gambar ❌</b><br><br>
-                        Sistem tidak menemukan pola Kode QR yang valid pada foto Anda.<br><br>
-                        <span style="font-size:12px; font-weight:normal; color:#555; display:block; text-align:left;">
-                        <b>Tips Jepretan Sukses di Redmi:</b><br>
-                        1. Dekatkan kamera ke kode QR (jarak ideal ±15 cm).<br>
-                        2. Pastikan kamera berhasil melakukan <b>Fokus</b> otomatis (gambar tidak blur) sebelum menjepret.<br>
-                        3. Hindari pantulan lampu silau atau bayangan gelap pada permukaan kode QR.
-                        </span>
-                    `;
-                    console.error("Detail log kesalahan:", err);
-                });
+            html5QrCode = new Html5Qrcode(READER_ID);
         });
+
+        // Coba mengurai isi QR menjadi field Nama & NIK.
+        // Mendukung: JSON {"nama":"...","nik":"..."}, atau teks "Nama;NIK" / "Nama|NIK" / baris terpisah.
+        function parseQrPayload(text) {
+            const trimmed = text.trim();
+
+            // 1. Coba sebagai JSON
+            try {
+                const obj = JSON.parse(trimmed);
+                const nama = obj.nama || obj.Nama || obj.name || obj.Name || null;
+                const nik = obj.nik || obj.NIK || obj.no_nik || obj.noNik || null;
+                if (nama || nik) {
+                    return { nama, nik, raw: trimmed };
+                }
+            } catch (e) { /* bukan JSON, lanjut ke pola berikutnya */ }
+
+            // 2. Coba pola "Nama: X, NIK: Y" (label eksplisit, urutan bebas)
+            const namaMatch = trimmed.match(/nama\s*[:=]\s*([^;,|\n]+)/i);
+            const nikMatch = trimmed.match(/nik\s*[:=]\s*([0-9A-Za-z]+)/i);
+            if (namaMatch || nikMatch) {
+                return {
+                    nama: namaMatch ? namaMatch[1].trim() : null,
+                    nik: nikMatch ? nikMatch[1].trim() : null,
+                    raw: trimmed
+                };
+            }
+
+            // 3. Coba pola dipisah delimiter umum: "Nama;NIK" atau "Nama|NIK" atau baris baru
+            const parts = trimmed.split(/[;|\n]/).map(p => p.trim()).filter(Boolean);
+            if (parts.length >= 2) {
+                return { nama: parts[0], nik: parts[1], raw: trimmed };
+            }
+
+            // 4. Tidak dikenali formatnya -> tampilkan mentah saja
+            return { nama: null, nik: null, raw: trimmed };
+        }
+
+        function showResult(decodedText) {
+            const data = parseQrPayload(decodedText);
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = "#d4edda";
+            resultDiv.style.color = "#155724";
+            resultDiv.style.borderColor = "#c3e6cb";
+
+            let html = `<div style="font-size:16px;">🎉 Absensi Terekam</div>`;
+            if (data.nama) {
+                html += `<div class="field"><span class="label">Nama</span>${escapeHtml(data.nama)}</div>`;
+            }
+            if (data.nik) {
+                html += `<div class="field"><span class="label">NIK</span>${escapeHtml(data.nik)}</div>`;
+            }
+            if (!data.nama && !data.nik) {
+                html += `<div class="field"><span class="label">Isi QR (format tidak dikenali)</span>${escapeHtml(data.raw)}</div>`;
+            } else {
+                html += `<div class="raw">Data mentah: ${escapeHtml(data.raw)}</div>`;
+            }
+            resultDiv.innerHTML = html;
+        }
+
+        function escapeHtml(str) {
+            const d = document.createElement('div');
+            d.innerText = str;
+            return d.innerHTML;
+        }
+
+        function onScanSuccess(decodedText) {
+            // Getarkan HP sebagai isyarat berhasil (jika didukung)
+            if (navigator.vibrate) navigator.vibrate(150);
+
+            showResult(decodedText);
+            stopScanning();
+            btnScanAgain.style.display = 'inline-block';
+            statusEl.innerText = '';
+        }
+
+        function startScanning() {
+            if (!html5QrCode || isScanning) return;
+
+            resultDiv.style.display = 'none';
+            btnScanAgain.style.display = 'none';
+            statusEl.style.color = '#856404';
+            statusEl.innerText = '⏳ Membuka kamera...';
+
+            // qrbox membatasi area yang dipindai -> kamera tidak "menjepret semuanya",
+            // hanya mencari pola QR di dalam kotak pemandu tersebut, secara real-time.
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0
+            };
+
+            html5QrCode.start(
+                { facingMode: "environment" }, // kamera belakang, sesuai HP Xiaomi Redmi Note 10 Pro
+                config,
+                onScanSuccess,
+                (errorMessage) => { /* frame tanpa QR, diabaikan supaya tidak spam log */ }
+            ).then(() => {
+                isScanning = true;
+                btnStart.style.display = 'none';
+                btnStop.style.display = 'inline-block';
+                statusEl.innerText = 'Arahkan kamera ke kode QR di dalam kotak.';
+            }).catch(err => {
+                statusEl.style.color = '#721c24';
+                statusEl.innerText = '❌ Tidak bisa mengakses kamera: ' + err;
+            });
+        }
+
+        function stopScanning() {
+            if (!html5QrCode || !isScanning) return;
+            html5QrCode.stop().then(() => {
+                html5QrCode.clear();
+                isScanning = false;
+                btnStart.style.display = 'inline-block';
+                btnStop.style.display = 'none';
+            }).catch(() => {
+                isScanning = false;
+                btnStart.style.display = 'inline-block';
+                btnStop.style.display = 'none';
+            });
+        }
+
+        btnStart.addEventListener('click', startScanning);
+        btnStop.addEventListener('click', () => {
+            stopScanning();
+            statusEl.innerText = '';
+        });
+        btnScanAgain.addEventListener('click', startScanning);
     </script>
 </body>
 </html>
