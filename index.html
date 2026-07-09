@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <title>Absensi QR - Redmi Note 10 Pro!</title>
+    <title>Absensi QR - Redmi Note 10 Pro</title>
 
     <!-- FIX: sebelumnya <script src="https://cloudflare.com"> (bukan library, jadi Html5Qrcode selalu undefined) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
@@ -96,11 +96,18 @@
             border-top: 1px dashed #ccc;
             padding-top: 6px;
         }
+        #result .save-status {
+            margin-top: 8px;
+            font-size: 13px;
+            font-weight: normal;
+            padding-top: 8px;
+            border-top: 1px dashed #ccc;
+        }
     </style>
 </head>
 <body>
 
-    <h1>📋 Absensi QR Anggota!</h1>
+    <h1>📋 Absensi QR Anggota</h1>
     <p class="subtitle">Arahkan kamera ke kode QR anggota (Nama &amp; NIK)</p>
 
     <div class="box-scanner">
@@ -118,6 +125,13 @@
     <div id="result">Hasil pemindaian akan muncul di sini.</div>
 
     <script>
+        // ==== KONFIGURASI ====
+        // Tempel URL Web App hasil deploy Apps Script Anda di sini
+        // (bentuknya: https://script.google.com/macros/s/XXXXXXXXXXXX/exec)
+        // const WEBAPP_URL = "GANTI_DENGAN_URL_WEB_APP_ANDA";
+		const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyWwxz75vfhRuWas_6z7RmApuTJoWFp5M5OijN6WVVeu4JoOA_mSi6sY7zyhJJctGAw/exec";
+        // ======================
+
         const READER_ID = "reader";
         let html5QrCode = null;
         let isScanning = false;
@@ -140,11 +154,19 @@
         });
 
         // Coba mengurai isi QR menjadi field Nama & NIK.
-        // Mendukung: JSON {"nama":"...","nik":"..."}, atau teks "Nama;NIK" / "Nama|NIK" / baris terpisah.
+        // Format utama yang dipakai: "Nama NIK" dipisah spasi (contoh: "Budi Santoso 3201012345678901")
+        // Token TERAKHIR yang berupa angka dianggap NIK, sisanya (bisa mengandung spasi) dianggap Nama.
+        // Tetap mendukung JSON dan delimiter lain sebagai cadangan.
         function parseQrPayload(text) {
             const trimmed = text.trim();
 
-            // 1. Coba sebagai JSON
+            // 1. Format utama: "Nama ... NIK" dipisah spasi, NIK = deretan angka di akhir teks
+            const spaceMatch = trimmed.match(/^(.+?)\s+(\d{6,})$/);
+            if (spaceMatch) {
+                return { nama: spaceMatch[1].trim(), nik: spaceMatch[2].trim(), raw: trimmed };
+            }
+
+            // 2. Coba sebagai JSON
             try {
                 const obj = JSON.parse(trimmed);
                 const nama = obj.nama || obj.Nama || obj.name || obj.Name || null;
@@ -154,7 +176,7 @@
                 }
             } catch (e) { /* bukan JSON, lanjut ke pola berikutnya */ }
 
-            // 2. Coba pola "Nama: X, NIK: Y" (label eksplisit, urutan bebas)
+            // 3. Coba pola "Nama: X, NIK: Y" (label eksplisit, urutan bebas)
             const namaMatch = trimmed.match(/nama\s*[:=]\s*([^;,|\n]+)/i);
             const nikMatch = trimmed.match(/nik\s*[:=]\s*([0-9A-Za-z]+)/i);
             if (namaMatch || nikMatch) {
@@ -165,13 +187,13 @@
                 };
             }
 
-            // 3. Coba pola dipisah delimiter umum: "Nama;NIK" atau "Nama|NIK" atau baris baru
+            // 4. Coba pola dipisah delimiter umum: "Nama;NIK" atau "Nama|NIK" atau baris baru
             const parts = trimmed.split(/[;|\n]/).map(p => p.trim()).filter(Boolean);
             if (parts.length >= 2) {
                 return { nama: parts[0], nik: parts[1], raw: trimmed };
             }
 
-            // 4. Tidak dikenali formatnya -> tampilkan mentah saja
+            // 5. Tidak dikenali formatnya -> tampilkan mentah saja
             return { nama: null, nik: null, raw: trimmed };
         }
 
@@ -182,7 +204,7 @@
             resultDiv.style.color = "#155724";
             resultDiv.style.borderColor = "#c3e6cb";
 
-            let html = `<div style="font-size:16px;">🎉 Absensi Terekam</div>`;
+            let html = `<div style="font-size:16px;">🎉 Absensi Terdeteksi</div>`;
             if (data.nama) {
                 html += `<div class="field"><span class="label">Nama</span>${escapeHtml(data.nama)}</div>`;
             }
@@ -194,7 +216,54 @@
             } else {
                 html += `<div class="raw">Data mentah: ${escapeHtml(data.raw)}</div>`;
             }
+            html += `<div class="save-status" id="save-status">💾 Menyimpan ke spreadsheet...</div>`;
             resultDiv.innerHTML = html;
+
+            return data;
+        }
+
+        function updateSaveStatus(text, color) {
+            const el = document.getElementById('save-status');
+            if (el) {
+                el.innerText = text;
+                el.style.color = color || '#555';
+            }
+        }
+
+        function sendToSheet(data) {
+            if (!WEBAPP_URL || WEBAPP_URL.indexOf('GANTI_DENGAN') !== -1) {
+                updateSaveStatus('⚠️ URL Apps Script belum diisi di kode index.html.', '#856404');
+                return;
+            }
+            if (!data.nama && !data.nik) {
+                updateSaveStatus('⚠️ Tidak disimpan: format QR tidak dikenali (Nama/NIK kosong).', '#856404');
+                return;
+            }
+
+            const payload = {
+                nama: data.nama || '',
+                nik: data.nik || '',
+                status: 'Hadir'
+            };
+
+            // Content-Type text/plain dipakai agar tidak memicu CORS preflight,
+            // yang tidak didukung dengan baik oleh Web App Apps Script.
+            fetch(WEBAPP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(json => {
+                if (json.result === 'success') {
+                    updateSaveStatus('✅ Tersimpan ke spreadsheet (' + json.timestamp + ')', '#155724');
+                } else {
+                    updateSaveStatus('❌ Gagal menyimpan: ' + (json.message || 'error tidak diketahui'), '#721c24');
+                }
+            })
+            .catch(err => {
+                updateSaveStatus('❌ Gagal menghubungi spreadsheet: ' + err, '#721c24');
+            });
         }
 
         function escapeHtml(str) {
@@ -207,7 +276,8 @@
             // Getarkan HP sebagai isyarat berhasil (jika didukung)
             if (navigator.vibrate) navigator.vibrate(150);
 
-            showResult(decodedText);
+            const data = showResult(decodedText);
+            sendToSheet(data);
             stopScanning();
             btnScanAgain.style.display = 'inline-block';
             statusEl.innerText = '';
@@ -229,6 +299,13 @@
                 aspectRatio: 1.0
             };
 
+            // Kamera browser hanya boleh diakses lewat HTTPS (atau localhost saat dites di komputer)
+            if (!window.isSecureContext) {
+                statusEl.style.color = '#721c24';
+                statusEl.innerText = '❌ Halaman ini harus dibuka lewat HTTPS (mis. link GitHub Pages), bukan file lokal, agar kamera bisa diakses.';
+                return;
+            }
+
             html5QrCode.start(
                 { facingMode: "environment" }, // kamera belakang, sesuai HP Xiaomi Redmi Note 10 Pro
                 config,
@@ -241,7 +318,16 @@
                 statusEl.innerText = 'Arahkan kamera ke kode QR di dalam kotak.';
             }).catch(err => {
                 statusEl.style.color = '#721c24';
-                statusEl.innerText = '❌ Tidak bisa mengakses kamera: ' + err;
+                const name = (err && err.name) ? err.name : '';
+                if (name === 'NotAllowedError' || /Permission denied/i.test(String(err))) {
+                    statusEl.innerHTML = '❌ Izin kamera ditolak.<br>Buka ikon 🔒 di address bar browser → Permissions → Camera → Allow, lalu muat ulang halaman ini.';
+                } else if (name === 'NotFoundError') {
+                    statusEl.innerText = '❌ Kamera tidak ditemukan di perangkat ini.';
+                } else if (name === 'NotReadableError') {
+                    statusEl.innerText = '❌ Kamera sedang dipakai aplikasi lain. Tutup aplikasi kamera/video lain lalu coba lagi.';
+                } else {
+                    statusEl.innerText = '❌ Tidak bisa mengakses kamera: ' + err;
+                }
             });
         }
 
